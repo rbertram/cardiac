@@ -1,0 +1,100 @@
+#
+# PLoS_20.ode
+#
+# This computer program is for the Luo-Rudy 1 model used in the
+# publication "Canard analysis reveals why a large Ca2+ window 
+# current promotes early afterdepolarizations in cardiac myocytes",
+# PLoS Computational Biology, 16(11):e1008341.
+# Authors are Josh Kimrey, Theo Vo, and Richard Bertram.
+ 
+# Initial conditions:
+V(0)=-84.5
+d(0)=0.0
+f(0)=1.0
+x(0)=0.0
+
+# parameters
+#
+number Ki=145, Nao=140, Nai=18, PRNaK=0.01833, R=8.31446261815324
+number Kelvin=310.15, Faraday=96.4853329, cda=0.095, cdb=0.07
+number cfa=0.012, cfb=0.0065, cxa=5.0E-4, cxb=0.0013
+number cxi=2.837, cK1a=1.02, cK1b=0.49124, Vda=-5, Vdb=44
+number Vfa=28,Vfb=30, Vxa=50, Vxb=20, Vxi1=77, Vxi2=35
+number sda1=-0.01, sda2=-0.072, sdb1=-0.017, sdb2=0.05
+number sfa1=-0.008, sfa2=0.15, sfb1=-0.02, sfb2=-0.2, sxa1=0.083
+number sxa2=0.057, sxb1=-0.06, sxb2=-0.04, sxi=0.04, sK1a=0.2385
+number sK1b1=0.08032, sK1b2=0.06175, sK1b3=-0.5143
+number sKp=0.16722408026755852842, gK1w=0.6047, gKp=0.0183
+number gb=0.03921, VKp=7.488, Vb=59.87
+#
+par C=1, gKw=0.282, VCa=80
+par Ko=5.4
+par gCa=0.112 #default: 0.09
+par shiftd=-2.08, shiftf=2.08
+#
+
+# K_o-dependent Potassium conductances
+gK=(0.43033148291193520945)*sqrt(Ko)*gKw
+gK1=(0.43033148291193520945)*sqrt(Ko)*gK1w
+
+# Nernst potentials
+VK=Faraday^(-1)*log((PRNaK*Nao+Ko)*(Ki+PRNaK*Nai)^(-1))*R*Kelvin
+VK1=Faraday^(-1)*R*log(Ki^(-1)*Ko)*Kelvin
+
+# activation/inactivation rates
+alphads=exp((Vda+(V-shiftd))*sda1)*(1+exp(sda2*(Vda+(V-shiftd))))^(-1)*cda
+betads=(1+exp(sdb2*(Vdb+(V-shiftd))))^(-1)*exp(sdb1*(Vdb+(V-shiftd)))*cdb
+alphafs=cfa*exp(sfa1*((V-shiftf)+Vfa))*(1+exp(sfa2*((V-shiftf)+Vfa)))^(-1)
+betafs=cfb*(1+exp(sfb2*(Vfb+(V-shiftf))))^(-1)*exp(sfb1*(Vfb+(V-shiftf)))
+alphad=exp((Vda+V)*sda1)*(1+exp(sda2*(Vda+V)))^(-1)*cda
+betad=(1+exp(sdb2*(Vdb+V)))^(-1)*exp(sdb1*(Vdb+V))*cdb
+alphaf=cfa*exp(sfa1*(V+Vfa))*(1+exp(sfa2*(V+Vfa)))^(-1)
+betaf=cfb*(1+exp(sfb2*(Vfb+V)))^(-1)*exp(sfb1*(Vfb+V))
+alphax=(1+exp((Vxa+V)*sxa2))^(-1)*cxa*exp((Vxa+V)*sxa1)
+betax=(1+exp((Vxb+V)*sxb2))^(-1)*exp((Vxb+V)*sxb1)*cxb
+alphaK1=(1+exp(-(59.215+VK1-V)*sK1a))^(-1)*cK1a
+betaK1=(cK1b*exp(-(-5.476+VK1-V)*sK1b1)+exp(-(594.31+VK1-V)*sK1b2))*(1+exp(-(-4.753+VK1-V)*sK1b3))^(-1)
+
+# Activation/inactivaiton functions
+dinf=alphads/(alphads+betads)
+finf=alphafs/(betafs+alphafs)
+xinf=alphax/(betax+alphax)
+K1inf=alphaK1/(alphaK1+betaK1)
+
+# Time constants
+taud=1/(alphad+betad)
+tauf=1/(betaf+alphaf)
+taux=1/(betax+alphax)
+
+# Other
+xi=cxi*(Vxi1+V)^(-1)*exp(sxi*(Vxi2+V))^(-1)*(-1+exp((Vxi1+V)*sxi))
+Kp=1/(1+exp(sKp*(VKp-V)))
+
+# Ionic currents
+ICa=-gCa*d*f*(VCa-V)
+IK=-gK*xi*(VK-V)*x
+IK1=-K1inf*(VK1-V)*gK1
+IKp=-(VK1-V)*Kp*gKp
+Ib=gb*(Vb+V)
+
+# Stimulation Protocol
+Par period=2200
+Par pulse=70
+Par tf=0, tp=2, tstart=10
+ts=t-tstart
+Iapp = pulse*(heav(mod(ts,period)-tf)-heav(mod(ts,period)-(tf+tp)))
+
+#
+# The differential equations
+#
+V'=-(Ib+IK+IK1+IKp+ICa)/C + Iapp
+d'=(dinf-d)/(taud*C)
+f'=(finf-f)/tauf
+x'=(xinf-x)/taux
+#
+@ maxstor=10000001, bounds=10000000, xp=t, yp=V, xlo=0, xhi=4000 
+@ ylo=-90, yhi=50, total=4000, dt=0.01, nmesh=1000 
+@ jac_eps=0.000001, newt_tol=0.000001, newt_iter=1000, bell=0
+@ toler=0.000001, meth=stiff
+#
+done
