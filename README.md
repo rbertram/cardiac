@@ -1,0 +1,1 @@
+These XPPAUT computer codes describe the dynamics of simple cardiac models. With the right parameter values Early Afterdepolarizations (EADs) are produced. The top of each code lists the publication where the model is described.
