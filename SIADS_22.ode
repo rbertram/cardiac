@@ -1,0 +1,190 @@
+#
+# SIADS_22.ode
+#
+# This computer program is for the Luo-Rudy 2 (dynamic) model used in the
+# publication "Canards Underlie Both Electrical and Ca$^{2+}$-Induced Early 
+# Afterdepolarizations in a Model for Cardiac Myocytes",
+# SIAM J. Applied Dynamical Systems, Vol. 21, No. 2, pp. 1059--1091.
+# Authors are Josh Kimrey, Theo Vo, and Richard Bertram.
+
+# Additional scaling parameters Kscale and gKscale are added to the original maodel to allow for simulating reduced activity of IK (i_K) and IK1 (i_K1).
+# Intracellular Na and K ion concentrations, which are dynamic variables in the original publication, are fixed in this model
+
+# Initial conditions
+init V=-86.47065550880745, Cai=0.0001197144859
+init m=0.001209034366, h=0.9767910537, j=0.9817841635
+init d=4.761644322588371e-6
+init f=0.999549249
+init x=0.0001261112082
+init Ca_JSR=1.727125392, Ca_NSR=1.727125392
+init APtrack=0, APtrack2=0, APtrack3=0
+init CaFluxtr=0
+init O_track=0, O_track2=0, O_track3=0
+
+# Stimulation Protocol
+Par period=1000
+Par pulse=30
+Par tf=0, tp=2, tstart=10
+ts=t-tstart
+Iapp = -pulse*(heav(mod(ts,period)-tf)-heav(mod(ts,period)-(tf+tp)))
+
+# Constant Variables
+Number Rgas=8314, Temp=310, Fara=96487
+Number gg_Nai=0.75, gg_Nao=0.75, gg_Ki=0.75, gg_Ko=0.75, gg_Cai=1, gg_Cao=0.341
+Number Km_Ca=0.0006
+Number K_mpCa=0.0005
+Number I_pCa=1.15
+Number K_mNai=10
+Number K_mKo=1.5
+Number K_m_ns_Ca=0.0012
+Number A_cap=0.0001534
+Number tau_tr=180
+Number K_mrel=0.0008
+Number delCaith=0.00018
+Number CSQN_max=10
+Number KmCSQN=0.8
+Number K_mup=0.00092
+Number Iup=0.005
+Number CaNSRmax=15
+Number K_mTn=0.0005
+Number KmCMDN=0.00238
+Number Tn_max=0.07
+Number CMDNmax=0.05
+Number CSQN_Th=0.7
+Number Log_Th=0.98
+Number kNaCa=2000
+Number KmNa=87.5
+Number KmCa=1.38
+Number ksat=0.1
+Number eta=0.35
+Number IbarNaK=1.5
+
+# Parameters
+Par tauT1=0.5, tauT2=0.5
+Par Kscale=1
+Par GG_K=0.282, gKscale=1
+Par Nao=140, Ko=5.4, Cao=1.8
+Par g_Na=16
+Par P_Ca=0.00054, P_Na=6.75e-7, P_K=1.93e-7
+Par PNaK=0.01833
+Par GG_K1=0.75
+Par g_Kp=0.0183
+Par g_Nab=0.00141
+Par g_Cab=0.003016
+Par P_ns_Ca=1.75e-7
+Par Na_i=10, Ki=145
+Par G_rel_max=60
+Par Grelover=4
+#Par Na_i=13.3649235394859, Ki=141.056872392446
+
+# Functions
+E_Na = Rgas*Temp/Fara*ln(Nao/Na_i)
+alpha_m = 0.32*(V+47.13)/(1-exp(-0.1*(V+47.13)))
+beta_m = 0.08*exp(-V/11)
+alpha_h = 0.135*exp(-(80+V)/(6.8))
+beta_h = 1/(0.13*(1+exp(-(V+10.66)/11.1)))
+alpha_j = (4.783616191517753E-7)/exp(0.10452406442846264*(-27.231992369862926 + V))
+beta_j = 0.3*exp(-(2.535E-7)*V)/(1.0+exp(-(0.1*(32.0+V))))
+d_inf = 1/(1+exp(-(V+10)/6.24))
+tau_d = d_inf*(1-exp(-(V+10)/6.24))/(0.035*(V+10))
+alpha_d = d_inf/tau_d
+beta_d = (1-d_inf)/tau_d
+f_inf = 1/(1+exp((V+32)/8))+0.6/(1+exp((50-V)/20))
+tau_f = 1/(0.0197*exp(-(0.0337*(V+10))^2)+0.02)
+alpha_f = f_inf/tau_f
+beta_f = (1-f_inf)/tau_f
+f_Ca = 1/(1+(Cai/Km_Ca)^2)
+g_K = GG_K*(Ko/5.4)^(0.5)
+E_K = Rgas*Temp/Fara*ln((Ko+PNaK*Nao)/(Ki+PNaK*Na_i))
+alpha_x = 0.0000719*(V+30)/(1-exp(-0.148*(V+30)))
+beta_x = 0.000131*(V+30)/(-1+exp(0.0687*(V+30)))
+xi = 1/(1+exp((V-56.26)/32.1))
+g_K1 = GG_K1*(Ko/5.4)^(0.5)
+E_K1 = Rgas*Temp/Fara*ln(Ko/Ki)
+alpha_K1 = 1.02/(1+exp(0.2385*(V-E_K1-59.215)))
+beta_K1 = 1*(0.49124*exp(0.08032*(V-E_K1+5.476))+exp(0.06175*(V-E_K1-594.31)))/(1+exp(-0.5143*(V-E_K1+4.753)))
+K1_inf = alpha_K1/(alpha_K1+beta_K1)
+Kp = 1/(1+exp((7.488-V)/5.98))
+E_Ca = Rgas*Temp/(2*Fara)*ln(Cao/Cai)
+sigma = 1/7*(exp(Nao/67.3)-1)
+f_NaK = 1/(1+0.1245*exp(-0.1*V*Fara/(Rgas*Temp))+0.0365*sigma*exp(-V*Fara/(Rgas*Temp)))
+Ins_Na = P_ns_Ca*V*(Fara^2)/(Rgas*Temp)*(gg_Nai*Na_i*exp(V*Fara/(Rgas*Temp))-gg_Nao*Nao)/(exp(V*Fara/(Rgas*Temp))-1)
+Ins_K = P_ns_Ca*V*(Fara^2)/(Rgas*Temp)*(gg_Ki*Ki*exp(V*Fara/(Rgas*Temp))-gg_Ko*Ko)/(exp(V*Fara/(Rgas*Temp))-1)
+Vmyo = 0.00002584
+VJSR = 0.000000182
+VNSR = 0.000002098
+Kleak = Iup/CaNSRmax
+
+# Currents
+i_Na = g_Na*(m^3)*h*j*(V-E_Na)
+ICaCa = (P_Ca*4*V*(Fara^2)/(Rgas*Temp))*(gg_Cai*Cai*exp(2*V*Fara/(Rgas*Temp))-gg_Cao*Cao)/(exp(2*V*Fara/(Rgas*Temp))-1)
+ICaNa = P_Na*V*(Fara^2)/(Rgas*Temp)*(gg_Nai*Na_i*exp(V*Fara/(Rgas*Temp))-gg_Nao*Nao)/(exp(V*Fara/(Rgas*Temp))-1)
+ICaK = P_K*V*(Fara^2)/(Rgas*Temp)*(gg_Ki*Ki*exp(V*Fara/(Rgas*Temp))-gg_Ko*Ko)/(exp(V*Fara/(Rgas*Temp))-1)
+i_CaCa = d*f*f_Ca*ICaCa
+i_CaNa = d*f*f_Ca*ICaNa
+i_CaK = d*f*f_Ca*ICaK
+iCaL = i_CaCa+i_CaK+i_CaNa
+i_K = Kscale*gKscale*g_K*x*x*xi*(V-E_K)
+i_K1 = Kscale*g_K1*K1_inf*(V-E_K1)
+i_Kp = g_Kp*Kp*(V-E_K1)
+i_NaCa = kNaCa*(1/(KmNa^3 + Nao^3))*(1/(KmCa + Cao))*(1/(1 + ksat*exp((eta-1)*V*Fara/(Rgas*Temp))))* \ 
+(exp(eta*V*Fara/(Rgas*Temp))*Na_i^3*Cao - exp((eta - 1)*V*Fara/(Rgas*Temp))*Nao^3*Cai)
+i_NaK = IbarNaK*f_NaK*(1/(1 + (K_mNai/Na_i)^1.5))*(Ko/(Ko + K_mKo))
+insNa = Ins_Na*1/(1+((K_m_ns_Ca/Cai)^3))
+insK = Ins_K*1/(1+((K_m_ns_Ca/Cai)^3))
+insCa = insNa+insK
+ipCa = I_pCa*Cai/(K_mpCa+Cai)
+i_Ca_b = g_Cab*(V-E_Ca)
+iNab = g_Nab*(V-E_Na)
+
+# Intracellular Ca currents
+i_rel = G_relVis*(Ca_JSR-Cai)
+i_up = Iup*Cai/(Cai+K_mup)
+i_leak = Kleak*Ca_NSR
+i_tr = (Ca_NSR-Ca_JSR)/tau_tr
+
+# Control of Calcium Fluxes During an Action Potential
+APtrack' = heav(dV_dt-150)*(100*(1-APtrack)-tauT1*APtrack)+  \
+heav(150-dV_dt)*(-tauT2*APtrack)
+APtrack2' = heav(0.2-APtrack)*heav(APtrack-0.18)*(100*(1-APtrack2)-0.5*APtrack2)+heav(APtrack-0.2)*(-0.5*APtrack2)+heav(0.18-APtrack)*(-0.5*APtrack2)  
+APtrack3' = heav(0.2-APtrack)*heav(APtrack-0.18)*(100*(1-APtrack3)-0.5*APtrack3)+heav(APtrack-0.2)*(-0.01*APtrack3)+heav(0.18-APtrack)*(-0.01*APtrack3)
+CaFluxtr'=heav(APtrack-0.2)*(-1*A_cap*(i_CaCa-2*i_NaCa+ipCa+i_Ca_b)/(2*Vmyo*Fara))+heav(APtrack2-0.01)*heav(0.2-APtrack)*0+ \
+heav(0.01-APtrack2)*(-0.5*CaFluxtr)
+O_track'=heav(1/(1+KmCSQN/Ca_JSR)-CSQN_Th)*heav(0.37-O_track3)*heav(0.37-APtrack3)*(50*(1-O_track))+ \
+heav(CSQN_Th-1/(1+KmCSQN/Ca_JSR))*(-0.5*O_track)+heav(O_track3-0.37)*(-0.5*O_track)+heav(APtrack3-0.37)*(-0.5*O_track)
+O_track2'=heav(O_track - Log_Th)*heav(Log_Th- O_track2)*(50*(1-O_track2))+heav(Log_Th-O_track)*(-0.5*O_track2)+heav(O_track2-Log_Th)*(-0.5*O_track2)
+O_track3'=heav(O_track - Log_Th)*heav(Log_Th-O_track3)*(50*(1-O_track3))+heav(Log_Th-O_track)*(-0.01*O_track3)+heav(O_track3-Log_Th)*(-0.01*O_track3)
+G_relVis=heav(CaFluxtr-delCaith)*((G_rel_max*(CaFluxtr-delCaith)/(K_mrel+CaFluxtr-delCaith))*(1-APtrack2)*APtrack2)+ \
+ heav(delCaith-CaFluxtr)*heav(O_track2-0)*(Grelover*(1-O_track2)*O_track2)+heav(delCaith-CaFluxtr)*0+heav(CaFluxtr-delCaith)*0+heav(0-O_track2)*0
+
+# Differential Equations
+dV_dt = -(i_Na+iCaL+i_K+i_K1+i_Kp+i_NaCa+i_NaK+insCa+ipCa+i_Ca_b+iNab+Iapp)
+V' = dV_dt
+m' = alpha_m*(1-m)-beta_m*m
+h' = alpha_h*(1-h)-beta_h*h
+j' = alpha_j*(1-j)-beta_j*j
+d' = alpha_d*(1-d)-beta_d*d
+f' = alpha_f*(1-f)-beta_f*f
+x' = alpha_x*(1-x)-beta_x*x
+Cai' = 1/(1+CMDNmax*KmCMDN/(KmCMDN+Cai)^2+ \
+Tn_max*K_mTn/(K_mTn+Cai)^2)*(-1*A_cap*(i_CaCa-2*i_NaCa+ipCa+i_Ca_b)/(2*Vmyo*Fara)+i_rel*VJSR/Vmyo+(i_leak-i_up)*VNSR/Vmyo)
+Ca_JSR' = (1/(1+CSQN_max*KmCSQN/(KmCSQN+Ca_JSR)^2))*(i_tr-i_rel)
+Ca_NSR' = -i_tr*VJSR/VNSR-i_leak+i_up
+# Na_i' = -1*(i_Na+i_CaNa+iNab+insNa+i_NaCa*3+iNaK*3)*A_cap/(Vmyo*Fara)
+# Ki' = -1*(-Iapp+i_CaK+i_Kr+i_Ks+i_K1+i_Kp+iKNa+iKATP+i_to+insK+(-iNaK)*2)*A_cap/(Vmyo*Fara)
+
+# only t, Ca_JSR, V
+
+#Auxilliary variables
+aux jin = -1*A_cap*(i_CaCa-2*i_NaCa+ipCa+i_Ca_b)/(2*Vmyo*Fara)
+aux Casr = Ca_NSR + Ca_JSR
+aux fca = f_Ca
+aux jrel = i_rel
+aux CSQNb = 1/(1+KmCSQN/Ca_JSR)
+aux CaF = CaFluxtr
+
+# Numerical and plotting parameters for xpp
+@ method=RK4, bounds=1000000, dt=0.01, maxstores=1000000, total=5000
+@ ylo=-95, yhi=55, yp=V, xlo=0, xhi=5000, nout=1
+
+done
